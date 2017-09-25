@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.EntityFrameworkCore;
+using ConductorAppAdmin.Models;
 
 namespace ConductorAppAdmin
 {
@@ -22,6 +24,9 @@ namespace ConductorAppAdmin
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddMvc();
+
+            services.AddDbContext<ConductorAppAdminContext>(options =>
+                    options.UseSqlServer(Configuration.GetConnectionString("ConductorAppAdminContext")));
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
