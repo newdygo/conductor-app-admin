@@ -1,30 +1,65 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Rendering;
-using Microsoft.EntityFrameworkCore;
-using ConductorAppAdmin.Models;
-
-namespace ConductorAppAdmin.Controllers
+﻿namespace ConductorAppAdmin.Controllers
 {
+    using ConductorAppAdmin.Models;
+    using Microsoft.AspNetCore.Mvc;
+    using Microsoft.EntityFrameworkCore;
+    using Microsoft.Extensions.Options;
+    using Microsoft.WindowsAzure.Storage;
+    using Microsoft.WindowsAzure.Storage.Queue;
+    using System;
+    using System.Linq;
+    using System.Threading.Tasks;
+
+    /// <summary>
+    /// Controller da comunicação
+    /// </summary>
     public class CommunicationController : Controller
     {
+        #region Propriedades
+
+        /// <summary>
+        /// Contexto do banco de dados.
+        /// </summary>
         private readonly ConductorAppAdminContext _context;
 
-        public CommunicationController(ConductorAppAdminContext context)
+        /// <summary>
+        /// Opções de configuração da storage account..
+        /// </summary>
+        private readonly StorageAccountOption _option;
+
+        #endregion
+
+        #region Construtores
+
+        /// <summary>
+        /// Inicializa a controller de comunicação
+        /// </summary>
+        /// <param name="context">Contexto do banco de dados.</param>
+        /// <param name="option">Opção de configuração.</param>
+        public CommunicationController(ConductorAppAdminContext context, IOptions<StorageAccountOption> option)
         {
             _context = context;
+            _option = option.Value;
         }
 
-        // GET: CommunicationModels
+        #endregion
+
+        #region Métodos
+
+        /// <summary>
+        /// GET: CommunicationModels
+        /// </summary>
+        /// <returns>View</returns>
         public async Task<IActionResult> Index()
         {
             return View(await _context.Communication.ToListAsync());
         }
 
-        // GET: CommunicationModels/Details/5
+        /// <summary>
+        /// GET: CommunicationModels/Details/5
+        /// </summary>
+        /// <param name="id">Id</param>
+        /// <returns>View</returns>
         public async Task<IActionResult> Details(int? id)
         {
             if (id == null)
@@ -32,8 +67,7 @@ namespace ConductorAppAdmin.Controllers
                 return NotFound();
             }
 
-            var communicationModel = await _context.Communication
-                .SingleOrDefaultAsync(m => m.Id == id);
+            var communicationModel = await _context.Communication.SingleOrDefaultAsync(m => m.Id == id);
             if (communicationModel == null)
             {
                 return NotFound();
@@ -42,29 +76,45 @@ namespace ConductorAppAdmin.Controllers
             return View(communicationModel);
         }
 
-        // GET: CommunicationModels/Create
+        /// <summary>
+        /// GET: CommunicationModels/Create
+        /// </summary>
+        /// <returns>View</returns>
         public IActionResult Create()
         {
             return View();
         }
 
-        // POST: CommunicationModels/Create
-        // To protect from overposting attacks, please enable the specific properties you want to bind to, for 
-        // more details see http://go.microsoft.com/fwlink/?LinkId=317598.
+        /// <summary>
+        /// POST: CommunicationModels/Create
+        /// </summary>
+        /// <param name="communicationModel">Comunicação.</param>
+        /// <returns>View</returns>
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create([Bind("Id,Title,Description")] Communication communicationModel)
         {
             if (ModelState.IsValid)
             {
-                _context.Add(communicationModel);
+                var account = CloudStorageAccount.Parse(_option.StorageAccountKeyOption);
+                var client = account.CreateCloudQueueClient();
+                var queue = client.GetQueueReference(_option.QueueNameOption);
+
+                await queue.AddMessageAsync(new CloudQueueMessage($"{communicationModel.Id}"));
+
+                await _context.AddAsync(communicationModel);
                 await _context.SaveChangesAsync();
+                
                 return RedirectToAction(nameof(Index));
             }
             return View(communicationModel);
         }
 
-        // GET: CommunicationModels/Edit/5
+        /// <summary>
+        /// GET: CommunicationModels/Edit/5
+        /// </summary>
+        /// <param name="id">Id</param>
+        /// <returns>View</returns>
         public async Task<IActionResult> Edit(int? id)
         {
             if (id == null)
@@ -80,9 +130,12 @@ namespace ConductorAppAdmin.Controllers
             return View(communicationModel);
         }
 
-        // POST: CommunicationModels/Edit/5
-        // To protect from overposting attacks, please enable the specific properties you want to bind to, for 
-        // more details see http://go.microsoft.com/fwlink/?LinkId=317598.
+        /// <summary>
+        /// POST: CommunicationModels/Edit/5
+        /// </summary>
+        /// <param name="id">Id</param>
+        /// <param name="communicationModel">Comunicação</param>
+        /// <returns>View</returns>
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id, [Bind("Id,Title,Description")] Communication communicationModel)
@@ -101,7 +154,7 @@ namespace ConductorAppAdmin.Controllers
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!CommunicationModelExists(communicationModel.Id))
+                    if (!_context.Communication.Any(e => e.Id == communicationModel.Id))
                     {
                         return NotFound();
                     }
@@ -115,7 +168,11 @@ namespace ConductorAppAdmin.Controllers
             return View(communicationModel);
         }
 
-        // GET: CommunicationModels/Delete/5
+        /// <summary>
+        /// GET: CommunicationModels/Delete/5
+        /// </summary>
+        /// <param name="id">Id</param>
+        /// <returns>View</returns>
         public async Task<IActionResult> Delete(int? id)
         {
             if (id == null)
@@ -123,8 +180,7 @@ namespace ConductorAppAdmin.Controllers
                 return NotFound();
             }
 
-            var communicationModel = await _context.Communication
-                .SingleOrDefaultAsync(m => m.Id == id);
+            var communicationModel = await _context.Communication.SingleOrDefaultAsync(m => m.Id == id);
             if (communicationModel == null)
             {
                 return NotFound();
@@ -133,7 +189,11 @@ namespace ConductorAppAdmin.Controllers
             return View(communicationModel);
         }
 
-        // POST: CommunicationModels/Delete/5
+        /// <summary>
+        /// POST: CommunicationModels/Delete/5
+        /// </summary>
+        /// <param name="id">Id</param>
+        /// <returns>View</returns>
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
@@ -144,9 +204,6 @@ namespace ConductorAppAdmin.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-        private bool CommunicationModelExists(int id)
-        {
-            return _context.Communication.Any(e => e.Id == id);
-        }
+        #endregion
     }
 }

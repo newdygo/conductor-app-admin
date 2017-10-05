@@ -1,18 +1,31 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
-
-namespace ConductorAppAdmin.Models
+﻿namespace ConductorAppAdmin.Models
 {
+    using Microsoft.EntityFrameworkCore;
+
+    /// <summary>
+    /// Contexto do banco de dados.
+    /// </summary>
     public class ConductorAppAdminContext : DbContext
     {
-        public ConductorAppAdminContext (DbContextOptions<ConductorAppAdminContext> options)
-            : base(options)
+        #region Construtctors
+
+        /// <summary>
+        /// Inicializa a class do contexto
+        /// </summary>
+        /// <param name="options">Opções do contexto.</param>
+        public ConductorAppAdminContext (DbContextOptions<ConductorAppAdminContext> options) : base(options)
         {
         }
 
-        public DbSet<ConductorAppAdmin.Models.Communication> Communication { get; set; }
+        #endregion
+
+        #region Properties
+
+        /// <summary>
+        /// Tabela de Comunicações.
+        /// </summary>
+        public DbSet<Communication> Communication { get; set; }
+
+        #endregion
     }
 }
